@@ -36,14 +36,14 @@ def main(keywords=None, country="DE", max_results=20):
         walker = WebsiteWalker()
     except Exception as e:
         print(f"❌ Initialization failed: {e}")
-        return
+        return pd.DataFrame(), {}
     
     # 3. Fetch Ads
     ads = meta.fetch_ads(KEYWORDS, country=COUNTRY, max_results=max_results)
     
     if not ads:
         print("⚠️ No ads found. Exiting.")
-        return
+        return pd.DataFrame(), {}
 
     # 4. Process Leads
     leads = []
