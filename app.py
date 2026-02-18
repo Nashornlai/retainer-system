@@ -190,10 +190,26 @@ with st.sidebar:
          with st.spinner("Synchronisiere..."):
              s1, m1 = sheets.sync_sqlite_to_sheets()
              s2, m2 = sheets.sync_sheets_to_sqlite()
-             st.success(f"Upload: {m1} | Download: {m2}")
+             if s1 and s2:
+                 st.success(f"Upload: {m1} | Download: {m2}")
+                 st.session_state.last_sync = datetime.now().strftime("%H:%M:%S")
+                 st.session_state.sync_error = None
+             else:
+                 st.error(f"Fehler: {m1} / {m2}")
+                 st.session_state.sync_error = f"{m1} / {m2}"
              time.sleep(1)
              st.rerun()
-             
+
+    # Sync Status Indicator
+    st.markdown("---")
+    if "last_sync" in st.session_state:
+        st.caption(f"Letzter Sync: {st.session_state.last_sync}")
+    
+    if "sync_error" in st.session_state and st.session_state.sync_error:
+        st.error(f"Sync Fehler: {st.session_state.sync_error}")
+    else:
+        st.caption("🟢 Cloud Status: Verbunden")
+
     st.markdown("---")
     if st.button("Logout", use_container_width=True):
         st.session_state.logged_in = False

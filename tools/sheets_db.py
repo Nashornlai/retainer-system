@@ -87,6 +87,7 @@ def sync_sqlite_to_sheets(sqlite_db_path="leads.db", sheet_name="Retainer Leads"
         return True, f"Synced {len(df)} rows to Sheets"
         
     except Exception as e:
+        print(f"❌ Sync Error: {e}")
         return False, str(e)
 
 def sync_sheets_to_sqlite(sqlite_db_path="leads.db", sheet_name="Retainer Leads"):
@@ -96,7 +97,7 @@ def sync_sheets_to_sqlite(sqlite_db_path="leads.db", sheet_name="Retainer Leads"
     """
     client = get_gspread_client()
     if not client:
-        return False, "Auth failed"
+        return False, "Auth failed (Client is None)"
         
     try:
         # Open Sheet
@@ -106,28 +107,30 @@ def sync_sheets_to_sqlite(sqlite_db_path="leads.db", sheet_name="Retainer Leads"
             return False, f"Spreadsheet '{sheet_name}' not found."
             
         # Get all records
-        data = sheet.get_all_records()
+        try:
+            data = sheet.get_all_records()
+        except Exception as e:
+             return False, f"Error reading sheet: {e}"
         
         if not data:
-            return True, "Sheet is empty, nothing to restore."
+            return True, "Sheet is empty, keeping local data."
             
         df = pd.DataFrame(data)
         
         # Connect to SQLite
         conn = sqlite3.connect(sqlite_db_path)
         
+        # Validate Schema compatibility before replacing
+        # (Simple check: do we have minimal columns?)
+        if "ID" not in df.columns:
+             conn.close()
+             return False, "Sheet missing 'ID' column. Sync aborted to protect DB."
+
         # Replace 'leads' table with sheet data
-        # We use 'replace' to ensure schema matches sheet, 
-        # BUT we must ensure the schema is compatible with our app logic.
-        # Ideally, we should upsert, but for MVP 'replace' on startup is okay 
-        # IF the sheet has all columns.
-        
-        # Safety: Ensure critical columns exist if sheet is partial? 
-        # For now, assume Sheet is the Source of Truth.
         df.to_sql("leads", conn, if_exists="replace", index=False)
         
         conn.close()
         return True, f"Restored {len(df)} rows from Sheets"
         
     except Exception as e:
-        return False, str(e)
+        return False, f"Critical Restore Error: {e}"
