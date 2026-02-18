@@ -99,6 +99,23 @@ def migrate_db():
     except sqlite3.OperationalError:
         pass # Column likely already exists
         
+    # Phase 15: Trash & Deletion
+    try:
+        c.execute("ALTER TABLE leads ADD COLUMN deleted BOOLEAN DEFAULT 0")
+        c.execute("ALTER TABLE leads ADD COLUMN deletion_reason TEXT")
+        print("✅ Database migrated: Added deletion tracking.")
+    except sqlite3.OperationalError:
+        pass
+        
+    # Phase 18: Follow-up System
+    try:
+        c.execute("ALTER TABLE leads ADD COLUMN follow_up_date TEXT")
+        c.execute("ALTER TABLE leads ADD COLUMN follow_up_reason TEXT")
+        c.execute("ALTER TABLE leads ADD COLUMN follow_up_status TEXT DEFAULT 'pending'")
+        print("✅ Database migrated: Added follow-up system.")
+    except sqlite3.OperationalError:
+        pass
+        
     conn.commit()
     conn.close()
 
