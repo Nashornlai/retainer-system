@@ -161,8 +161,8 @@ with st.sidebar:
     # Use key to allow programmatic navigation
     page = option_menu(
         "Startmenü",
-        ["Dashboard", "Neue Suche", "CRM & Leads", "Wiedervorlage", "Kategorien", "Papierkorb"],
-        icons=['speedometer2', 'search', 'people-fill', 'calendar-check', 'tags-fill', 'trash'],
+        ["Dashboard", "To Do", "Neue Suche", "CRM & Leads", "Wiedervorlage", "Kategorien", "Papierkorb"],
+        icons=['speedometer2', 'check-circle', 'search', 'people-fill', 'calendar-check', 'tags-fill', 'trash'],
         menu_icon="cast", 
         default_index=0,
         key='main_navigation',
@@ -243,6 +243,96 @@ if page == "Dashboard":
         else:
             st.write("Keine Daten.")
         st.markdown('</div>', unsafe_allow_html=True)
+        
+elif page == "To Do":
+    st.title("✅ To Do (Offene Leads)")
+    st.info("Hier sind alle Leads, die du noch nicht bearbeitet hast (kein Newsletter, kein Warenkorb, kein 'Kein NL').")
+    
+    df_all = db.get_user_leads(st.session_state.user_id)
+    
+    if not df_all.empty:
+        # Filter for unprocessed leads
+        # Ensure columns exist (db migration should have added them)
+        cols_check = ["Newsletter", "Warenkorb", "Kein NL"]
+        for c in cols_check:
+            if c not in df_all.columns:
+                df_all[c] = 0 # Default to 0 if missing to avoid crash
+        
+        # Filter: All 3 must be False/0/None (handling potential None from SQL)
+        # We treat None as False (0)
+        mask_todo = (
+            (df_all["Newsletter"].fillna(0) == 0) & 
+            (df_all["Warenkorb"].fillna(0) == 0) & 
+            (df_all["Kein NL"].fillna(0) == 0) &
+            (df_all["Trash"].fillna(0) == 0) # Exclude trash
+        )
+        
+        df_todo = df_all[mask_todo].copy()
+        
+        # Metrics
+        st.metric("Offene Leads", len(df_todo))
+        
+        if not df_todo.empty:
+            st.markdown('<div class="stCard">', unsafe_allow_html=True)
+            edited_todo = st.data_editor(
+                df_todo,
+                key="todo_editor",
+                use_container_width=True,
+                column_config={
+                    "ID": None,
+                    "Company": "Firma",
+                    "Website": st.column_config.LinkColumn("Webseite", display_text="Url"),
+                    "Ad URL": st.column_config.LinkColumn("Ad", display_text="Ad"),
+                    "Ad Image": st.column_config.ImageColumn("Bild"),
+                    "Newsletter": st.column_config.CheckboxColumn("✉️ NL", width="small"),
+                    "Kein NL": st.column_config.CheckboxColumn("🚫 Kein NL", width="small"),
+                    "Warenkorb": st.column_config.CheckboxColumn("🛒 Cart", width="small"),
+                    "Notizen": st.column_config.TextColumn("Notizen"),
+                    "Trash": st.column_config.CheckboxColumn("🗑️", width="small"),
+                    
+                    # Hide others
+                    "Angeschrieben": None, "Antwort": None, "Kunde": None, "Grund": None, 
+                    "Keyword": None, "Category": None, "Date": None, "Status": None, 
+                    "Wiedervorlage": None, "Aufgabe": None, "Status": None, "Email": None
+                },
+                hide_index=True,
+                disabled=["Company", "Website", "Ad URL", "Ad Image"]
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Save Logic (Must be robust!)
+            if "todo_editor" in st.session_state:
+                changes = st.session_state.todo_editor.get("edited_rows", {})
+                
+                # Standard updates
+                for idx, updates in changes.items():
+                    if "Trash" in updates: continue
+                    try:
+                         # Map back to real ID using index
+                         real_row = df_todo.loc[int(idx)]
+                         for col, val in updates.items():
+                             db.update_lead(real_row["ID"], col, val)
+                    except:
+                        pass
+                
+                # Batch Delete
+                trash_indices = [idx for idx, updates in changes.items() if updates.get("Trash")]
+                if trash_indices:
+                     if st.button(f"🗑️ {len(trash_indices)} löschen", key="btn_del_todo"):
+                         for idx in trash_indices:
+                             db.update_lead(df_todo.loc[int(idx)]["ID"], "Trash", True)
+                         st.rerun()
+
+                # Force reload if any change happened (except Trash waiting for button)
+                # This gives the "Inbox Zero" effect - items vanish when checked!
+                if len(changes) > 0 and not any("Trash" in u for u in changes.values()):
+                    st.toast("✅ Gespeichert!", icon="🎉")
+                    time.sleep(0.5) 
+                    st.rerun()
+        else:
+             st.success("🎉 Alles erledigt! Keine offenen Leads.")
+    else:
+        st.info("Noch keine Leads vorhanden.")
 
 elif page == "Neue Suche":
     st.title("Neue Leads")
