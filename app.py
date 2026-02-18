@@ -339,6 +339,7 @@ elif page == "CRM & Leads":
                 "Ad URL": st.column_config.LinkColumn("Ad", display_text="👀"),
                 "Ad Image": st.column_config.ImageColumn("Img"),
                 "Newsletter": st.column_config.CheckboxColumn("✉️ NL", width="small"),
+                "Kein NL": st.column_config.CheckboxColumn("🚫 Kein NL", width="small"),
                 "Warenkorb": st.column_config.CheckboxColumn("🛒 Cart", width="small"),
                 "Angeschrieben": st.column_config.CheckboxColumn("📤 Sent", width="small"),
                 "Antwort": st.column_config.CheckboxColumn("🗣️ Reply", width="small"),
@@ -365,6 +366,10 @@ elif page == "CRM & Leads":
                          db.update_lead(lead_id, col, val)
                 except:
                     pass
+            
+            # Force reload to persist changes in UI immediately
+            if len(changes) > 0 and not any("Trash" in u for u in changes.values()):
+                st.rerun()
 
         # Batch Delete Action
         trash_indices = [idx for idx, updates in st.session_state.get("crm_editor", {}).get("edited_rows", {}).items() if updates.get("Trash")]

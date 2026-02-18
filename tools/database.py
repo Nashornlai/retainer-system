@@ -116,6 +116,13 @@ def migrate_db():
     except sqlite3.OperationalError:
         pass
         
+    # Phase 20: No Newsletter Option
+    try:
+        c.execute("ALTER TABLE leads ADD COLUMN no_newsletter BOOLEAN DEFAULT 0")
+        print("✅ Database migrated: Added no_newsletter.")
+    except sqlite3.OperationalError:
+        pass
+        
     conn.commit()
     conn.close()
 
@@ -173,6 +180,7 @@ def get_user_leads(user_id, filter_status='active'):
             l.ad_url as 'Ad URL',
             l.ad_image as 'Ad Image',
             l.newsletter_signup as 'Newsletter',
+            l.no_newsletter as 'Kein NL',
             l.cart_abandoned as 'Warenkorb',
             l.email_sent as 'Angeschrieben',
             l.response_received as 'Antwort',
@@ -221,6 +229,7 @@ def update_lead(lead_id, column, value):
             # Map friendly names to DB columns
             db_col = {
                 "Newsletter": "newsletter_signup",
+                "Kein NL": "no_newsletter",
                 "Warenkorb": "cart_abandoned",
                 "Angeschrieben": "email_sent",
                 "Antwort": "response_received",
