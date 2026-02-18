@@ -8,6 +8,13 @@ from streamlit_option_menu import option_menu
 # Configure Streamlit page (Must be first Streamlit command)
 st.set_page_config(page_title="Leads Generator 3000", page_icon="⚡", layout="wide")
 
+# Inject secrets into environment (for Streamlit Cloud)
+try:
+    if "APIFY_TOKEN" in st.secrets:
+        os.environ["APIFY_TOKEN"] = st.secrets["APIFY_TOKEN"]
+except Exception:
+    pass # Local mode or no secrets configuration
+
 # Ensure 'tools' package is importable
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
