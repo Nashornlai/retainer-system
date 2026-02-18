@@ -21,9 +21,21 @@ sys.path.append(current_dir)
 
 from tools.orchestrator import main as run_orchestrator
 import tools.database as db
+import tools.sheets_db as sheets
 
 # Initialize Database
 db.init_db()
+
+# --- GOOGLE SHEETS SYNC (STARTUP) ---
+# Try to restore data from Sheets on boot
+if "sheets_synced" not in st.session_state:
+    with st.spinner("Lade Daten aus Google Sheets..."):
+        success, msg = sheets.sync_sheets_to_sqlite()
+        if success:
+            print(f"✅ Startup Sync: {msg}")
+        else:
+            print(f"⚠️ Startup Sync Warning: {msg}")
+    st.session_state.sheets_synced = True
 
 # Session State
 if "logged_in" not in st.session_state:
@@ -174,6 +186,14 @@ with st.sidebar:
         }
     )
     
+    if st.button("Manueller Sync 🔄", use_container_width=True):
+         with st.spinner("Synchronisiere..."):
+             s1, m1 = sheets.sync_sqlite_to_sheets()
+             s2, m2 = sheets.sync_sheets_to_sqlite()
+             st.success(f"Upload: {m1} | Download: {m2}")
+             time.sleep(1)
+             st.rerun()
+             
     st.markdown("---")
     if st.button("Logout", use_container_width=True):
         st.session_state.logged_in = False
@@ -321,11 +341,17 @@ elif page == "To Do":
                      if st.button(f"🗑️ {len(trash_indices)} löschen", key="btn_del_todo"):
                          for idx in trash_indices:
                              db.update_lead(df_todo.loc[int(idx)]["ID"], "Trash", True)
+                         
+                         # Sync after batch delete
+                         sheets.sync_sqlite_to_sheets()
                          st.rerun()
 
                 # Force reload if any change happened (except Trash waiting for button)
                 # This gives the "Inbox Zero" effect - items vanish when checked!
                 if len(changes) > 0 and not any("Trash" in u for u in changes.values()):
+                    # Sync after single edit
+                    sheets.sync_sqlite_to_sheets()
+                    
                     st.toast("✅ Gespeichert!", icon="🎉")
                     time.sleep(0.5) 
                     st.rerun()
@@ -357,6 +383,10 @@ elif page == "Neue Suche":
                      df["Ad URL"] = df["Ad URL"].apply(lambda x: f"{x}&country={country}" if "?" in str(x) else f"{x}?country={country}")
                 
                 db.save_search_results(st.session_state.user_id, keyword, country, df)
+                
+                # Auto-Sync to Sheets after search
+                sheets.sync_sqlite_to_sheets()
+                
                 bar.progress(100, "Fertig!")
                 st.success(f"✅ {len(df)} Leads gefunden!")
                 st.dataframe(df, use_container_width=True)
@@ -457,6 +487,11 @@ elif page == "CRM & Leads":
                 except:
                     pass
             
+            # Sync to Sheets after edits
+            sheets.sync_sqlite_to_sheets()
+
+            # Force reload to persist changes in UI immediately
+            
             # Force reload to persist changes in UI immediately
             if len(changes) > 0 and not any("Trash" in u for u in changes.values()):
                 st.rerun()
@@ -473,6 +508,9 @@ elif page == "CRM & Leads":
                         db.update_lead(real_row["ID"], "Trash", True)
                     except:
                         pass
+                
+                # Sync after delete
+                sheets.sync_sqlite_to_sheets()
                 
                 # Reset Editor State
                 del st.session_state.crm_editor
