@@ -1,0 +1,24 @@
+
+# Environment Variables
+.env
+
+# Database (Local SQLite)
+leads.db
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
