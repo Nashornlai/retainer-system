@@ -31,12 +31,10 @@ def main(keywords=None, country="DE", max_results=20):
     # max_results is passed directly
     
     # 2. Initialize Tools
-    try:
-        meta = MetaClient()
-        walker = WebsiteWalker()
-    except Exception as e:
-        print(f"❌ Initialization failed: {e}")
-        return pd.DataFrame(), {}
+    # 3. Initialize Tools
+    # Let exceptions propagate to app.py for UI feedback
+    meta = MetaClient()
+    walker = WebsiteWalker()
     
     # 3. Fetch Ads
     ads = meta.fetch_ads(KEYWORDS, country=COUNTRY, max_results=max_results)
