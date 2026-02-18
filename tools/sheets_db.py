@@ -71,9 +71,18 @@ def sync_sqlite_to_sheets(sqlite_db_path="leads.db", sheet_name="Retainer Leads"
         df_clean = df.fillna("")
         
         # Update Sheet
+        # Update Sheet
         # clear() then update() is safest for full sync
         sheet.clear()
-        sheet.update([df_clean.columns.values.tolist()] + df_clean.values.tolist())
+        
+        # Use explicit range and values to be safe with different gspread versions
+        data = [df_clean.columns.values.tolist()] + df_clean.values.tolist()
+        try:
+            # Newer gspread
+            sheet.update(range_name='A1', values=data)
+        except TypeError:
+            # Older gspread fallback
+            sheet.update('A1', data)
         
         return True, f"Synced {len(df)} rows to Sheets"
         
