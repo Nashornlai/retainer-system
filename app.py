@@ -275,6 +275,10 @@ elif page == "Neue Suche":
                 st.warning("Keine Ergebnisse gefunden.")
         except Exception as e:
             st.error(f"Fehler: {e}")
+            try:
+                st.write("Debug: Gefundene Secrets:", list(st.secrets.keys()))
+            except:
+                pass
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "CRM & Leads":
